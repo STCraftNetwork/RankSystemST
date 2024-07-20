@@ -40,7 +40,7 @@ class Session{
         if($result === false || $result->num_rows === 0){
             $this->ranks = ["Default"];
             $this->permissions = [];
-            $this->chatColor = TF::WHITE;
+            $this->chatColor = TF::RED;
             $this->tags = [];
         } else {
             $data = $result->fetch_assoc();
@@ -131,8 +131,20 @@ class Session{
         $permissions = $this->db->escape_string(implode(",", $this->permissions));
         $chatColor = $this->db->escape_string(strtolower(substr($this->chatColor, 2)));
         $tags = $this->db->escape_string(implode(",", $this->tags));
-        $this->db->query("UPDATE players SET ranks = '$ranks', permissions = '$permissions', chatColor = '$chatColor', tags = '$tags' WHERE name = '$name'");
+
+        $query = "
+        INSERT INTO players (name, ranks, permissions, chatColor, tags)
+        VALUES ('$name', '$ranks', '$permissions', '$chatColor', '$tags')
+        ON DUPLICATE KEY UPDATE 
+            ranks = VALUES(ranks), 
+            permissions = VALUES(permissions), 
+            chatColor = VALUES(chatColor), 
+            tags = VALUES(tags)
+    ";
+
+        $this->db->query($query);
     }
+
 
     public function getChatFormat() : string
     {
