@@ -1,0 +1,7 @@
+---
+name: RankSystemST
+version: 0.0.1
+main: KanadeBlue\RankSystemST\RankSystem
+api: 5.17.0
+src-namespace-prefix: KanadeBlue\RankSystemST
+...
