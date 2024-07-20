@@ -73,20 +73,6 @@ class CreateRankCommand extends Command {
         $form->addInput("Rank name");
         $form->addDropdown("Parent rank (optional)", $rankNames);
         $form->addDropdown("Color (optional)", $colors);
-        $form->addLabel("Preview:");
-        $form->addLabel("");
-
-        $form->setHandler(function (Player $player, ?array $data) use ($form, $rankNames, $colors): void {
-            if ($data === null) {
-                return;
-            }
-
-            $previewColor = $data[2] === count($colors) - 1 ? "" : substr($colors[$data[2]], 0, 2);
-            $parentRank = $data[1] === 0 ? "None" : $rankNames[$data[1]];
-
-            $previewText = "Rank: " . $data[0] . "\nParent Rank: " . $parentRank . "\nColor: " . $previewColor;
-            $form->setLabel(3, $previewText);
-        });
 
         $sender->sendForm($form);
     }
