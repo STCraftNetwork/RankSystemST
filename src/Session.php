@@ -139,10 +139,11 @@ class Session{
         $tags = implode(" ", $this->getTags());
         $highestRank = $this->getHighestRank();
         $chatColor = $this->getChatColor();
+        if ($highestRank == null) return $tags . $chatColor . " " . "{message}";
         return $highestRank . " " . $tags . $chatColor . " " . "{message}";
     }
 
-    public function getHighestRank() : string {
+    public function getHighestRank() : ?string {
         $rankHierarchy = $this->rankManager->getRankHierarchy();
 
         $highestRank = "";
@@ -150,6 +151,10 @@ class Session{
             if (array_search($rank, $rankHierarchy) > array_search($highestRank, $rankHierarchy)) {
                 $highestRank = $rank;
             }
+        }
+
+        if ($rankHierarchy == null || $this->rankManager->getFormattedRank($highestRank) == null) {
+            return null;
         }
 
         return $this->rankManager->getFormattedRank($highestRank);
