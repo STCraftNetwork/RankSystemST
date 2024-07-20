@@ -139,8 +139,10 @@ class Session{
         $tags = implode(" ", $this->getTags());
         $highestRank = $this->getHighestRank();
         $chatColor = $this->getChatColor();
-        if ($highestRank == null) return $tags . $chatColor . " " . "{message}";
-        return $highestRank . " " . $tags . $chatColor . " " . "{message}";
+        $displayName = $this->player->getDisplayName();
+        if ($highestRank == null) return $tags . " " . $displayName. " ". $chatColor . "{message}";
+        if (empty($this->getTags()) && $highestRank == null) return $displayName .  " " . $chatColor . "{message}";
+        return $highestRank . " " . $tags . " " . $displayName .  " " . $chatColor . "{message}";
     }
 
     public function getHighestRank() : ?string {
@@ -159,6 +161,4 @@ class Session{
 
         return $this->rankManager->getFormattedRank($highestRank);
     }
-
-
 }

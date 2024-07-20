@@ -46,10 +46,14 @@ class RankManager {
         if ($this->rankExists($rank)) {
             return null;
         }
+        if ($parent !== null && !$this->rankExists($parent)) {
+            return null; // Parent rank does not exist
+        }
         $rank = $this->db->escape_string($rank);
         $parent = $parent ? $this->db->escape_string($parent) : null;
         $color = $color ? $this->db->escape_string($color) : null;
-        $this->db->query("INSERT INTO ranks (name, parent, color) VALUES ('$rank', '$parent', '$color')");
+        $parentValue = $parent ? "'$parent'" : "NULL";
+        $this->db->query("INSERT INTO ranks (name, parent, color) VALUES ('$rank', $parentValue, '$color')");
         $this->ranks[$rank] = ["name" => $rank, "parent" => $parent, "color" => $color];
         return 1;
     }
