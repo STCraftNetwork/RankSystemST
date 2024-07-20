@@ -1,7 +1,11 @@
 ---
 name: RankSystemST
-version: 0.0.1
+version: 1.0.0
 main: KanadeBlue\RankSystemST\RankSystem
 api: 5.17.0
 src-namespace-prefix: KanadeBlue\RankSystemST
+
+permissions:
+  command.rank.set:
+    default: op
 ...

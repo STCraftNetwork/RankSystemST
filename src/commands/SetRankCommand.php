@@ -13,6 +13,7 @@ class SetRankCommand extends Command{
     private RankSystem $plugin;
 
     public function __construct(RankSystem $plugin){
+        $this->setPermission("command.rank.set");
         parent::__construct("setrank", "Set a player's rank");
         $this->plugin = $plugin;
     }
