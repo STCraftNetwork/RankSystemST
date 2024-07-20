@@ -50,10 +50,10 @@ class Session{
                 $this->ranks[] = $rank;
                 $this->saveData();
             } else {
-                echo "The rank {$rank} does not exist.\n";
+                RankSystem::getInstance()->getLogger()->info("The rank {$rank} does not exist.");
             }
         } else {
-            echo "The player already has the rank {$rank}.\n";
+            RankSystem::getInstance()->getLogger()->info("The player already has the rank {$rank}.\n");
         }
     }
 
