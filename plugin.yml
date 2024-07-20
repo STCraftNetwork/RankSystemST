@@ -8,4 +8,6 @@ src-namespace-prefix: KanadeBlue\RankSystemST
 permissions:
   command.rank.set:
     default: op
+  command.rank.create:
+    default: op
 ...
