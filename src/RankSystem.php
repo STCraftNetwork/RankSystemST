@@ -49,7 +49,7 @@ class RankSystem extends PluginBase implements Listener{
     public function onJoin(PlayerJoinEvent $event): void
     {
         $player = $event->getPlayer();
-        $session = new Session($player, $this->db, $this->rankManager);
+        $session = new Session($player, $player->getName(), $this->db, $this->rankManager);
         $this->sessions[$player->getName()] = $session;
         foreach($session->getPermissions() as $permission){
             $player->addAttachment($this)->setPermission($permission, true);
