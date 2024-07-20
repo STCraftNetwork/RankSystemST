@@ -133,4 +133,27 @@ class Session{
         $tags = $this->db->escape_string(implode(",", $this->tags));
         $this->db->query("UPDATE players SET ranks = '$ranks', permissions = '$permissions', chatColor = '$chatColor', tags = '$tags' WHERE name = '$name'");
     }
+
+    public function getChatFormat() : string
+    {
+        $tags = implode(" ", $this->getTags());
+        $highestRank = $this->getHighestRank();
+        $chatColor = $this->getChatColor();
+        return $highestRank . " " . $tags . $chatColor . " " . "{message}";
+    }
+
+    public function getHighestRank() : string {
+        $rankHierarchy = $this->rankManager->getRankHierarchy();
+
+        $highestRank = "";
+        foreach ($this->ranks as $rank) {
+            if (array_search($rank, $rankHierarchy) > array_search($highestRank, $rankHierarchy)) {
+                $highestRank = $rank;
+            }
+        }
+
+        return $this->rankManager->getFormattedRank($highestRank);
+    }
+
+
 }

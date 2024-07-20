@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KanadeBlue\RankSystemST;
 
+use KanadeBlue\RankSystemST\commands\CreateRankCommand;
 use KanadeBlue\RankSystemST\commands\SetRankCommand;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
@@ -33,6 +34,7 @@ class RankSystem extends PluginBase implements Listener{
         }
         $this->rankManager = new RankManager($this->db);
         $this->getServer()->getCommandMap()->register("setrank", new SetRankCommand($this));
+        $this->getServer()->getCommandMap()->register("createrank", new CreateRankCommand($this));
     }
 
     public function onDisable() : void{
@@ -67,10 +69,11 @@ class RankSystem extends PluginBase implements Listener{
         $player = $event->getPlayer();
         $session = $this->getSession($player);
         if($session !== null){
-            $tags = implode(" ", $session->getTags());
-            $event->setMessage($tags . $session->getChatColor() . " " . $event->getMessage());
+            $formatter = New ChatFormat($this->getSession($player));
+            $event->setFormatter($formatter);
         }
     }
+
 
 
     public function getSession(Player $player) : ?Session{
