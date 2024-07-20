@@ -11,7 +11,14 @@ class RankManager{
 
     public function __construct(mysqli $db){
         $this->db = $db;
+        $this->createTables();
         $this->loadRanks();
+    }
+
+    private function createTables() : void{
+        $this->db->query("CREATE TABLE IF NOT EXISTS ranks (
+            name VARCHAR(30) PRIMARY KEY
+        )");
     }
 
     private function loadRanks() : void{

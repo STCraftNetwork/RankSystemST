@@ -20,7 +20,18 @@ class Session{
         $this->player = $player;
         $this->db = $db;
         $this->rankManager = $rankManager;
+        $this->createTables();
         $this->loadData();
+    }
+
+    private function createTables() : void{
+        $this->db->query("CREATE TABLE IF NOT EXISTS players (
+            name VARCHAR(30) PRIMARY KEY,
+            ranks TEXT,
+            permissions TEXT,
+            chatColor VARCHAR(30),
+            tag VARCHAR(30)
+        )");
     }
 
     private function loadData() : void{
