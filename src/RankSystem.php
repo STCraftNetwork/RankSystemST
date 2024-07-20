@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace KanadeBlue\RankSystemST;
 
-use IvanCraft623\RankSystem\rank\Rank;
 use KanadeBlue\RankSystemST\commands\SetRankCommand;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
@@ -53,7 +52,8 @@ class RankSystem extends PluginBase implements Listener{
         foreach($session->getPermissions() as $permission){
             $player->addAttachment($this)->setPermission($permission, true);
         }
-        $player->setNameTag($session->getChatColor() . $session->getTag() . " " . $player->getName());
+        $tags = implode(" ", $session->getTags());
+        $player->setNameTag($tags . $session->getChatColor() . " " . $player->getName());
     }
 
     public function onQuit(PlayerQuitEvent $event): void
@@ -67,9 +67,11 @@ class RankSystem extends PluginBase implements Listener{
         $player = $event->getPlayer();
         $session = $this->getSession($player);
         if($session !== null){
-            $event->setMessage($session->getChatColor() . $event->getMessage());
+            $tags = implode(" ", $session->getTags());
+            $event->setMessage($tags . $session->getChatColor() . " " . $event->getMessage());
         }
     }
+
 
     public function getSession(Player $player) : ?Session{
         return $this->sessions[$player->getName()] ?? null;

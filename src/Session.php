@@ -12,7 +12,7 @@ class Session{
     private array $ranks;
     private array $permissions;
     private string $chatColor;
-    private string $tag;
+    private array $tags;
     private mysqli $db;
     private RankManager $rankManager;
 
@@ -30,7 +30,7 @@ class Session{
             ranks TEXT,
             permissions TEXT,
             chatColor VARCHAR(30),
-            tag VARCHAR(30)
+            tags TEXT
         )");
     }
 
@@ -41,13 +41,13 @@ class Session{
             $this->ranks = ["Default"];
             $this->permissions = [];
             $this->chatColor = TF::WHITE;
-            $this->tag = "";
+            $this->tags = [];
         } else {
             $data = $result->fetch_assoc();
             $this->ranks = explode(",", $data["ranks"]);
             $this->permissions = explode(",", $data["permissions"]);
             $this->chatColor = constant(TF::class . "::" . strtoupper($data["chatColor"]));
-            $this->tag = $data["tag"];
+            $this->tags = explode(",", $data["tags"]);
         }
     }
 
@@ -103,13 +103,26 @@ class Session{
         $this->saveData();
     }
 
-    public function getTag() : string{
-        return $this->tag;
+    public function getTags() : array{
+        return $this->tags;
     }
 
-    public function setTag(string $tag) : void{
-        $this->tag = $tag;
-        $this->saveData();
+    public function addTag(string $tag) : void{
+        if (!in_array($tag, $this->tags)) {
+            $this->tags[] = $tag;
+            $this->saveData();
+        } else {
+            RankSystem::getInstance()->getLogger()->info("The player already has the tag {$tag}.\n");
+        }
+    }
+
+    public function removeTag(string $tag) : void{
+        $key = array_search($tag, $this->tags);
+        if($key !== false){
+            unset($this->tags[$key]);
+            $this->tags = array_values($this->tags);
+            $this->saveData();
+        }
     }
 
     private function saveData() : void{
@@ -117,7 +130,7 @@ class Session{
         $ranks = $this->db->escape_string(implode(",", $this->ranks));
         $permissions = $this->db->escape_string(implode(",", $this->permissions));
         $chatColor = $this->db->escape_string(strtolower(substr($this->chatColor, 2)));
-        $tag = $this->db->escape_string($this->tag);
-        $this->db->query("UPDATE players SET ranks = '$ranks', permissions = '$permissions', chatColor = '$chatColor', tag = '$tag' WHERE name = '$name'");
+        $tags = $this->db->escape_string(implode(",", $this->tags));
+        $this->db->query("UPDATE players SET ranks = '$ranks', permissions = '$permissions', chatColor = '$chatColor', tags = '$tags' WHERE name = '$name'");
     }
 }
