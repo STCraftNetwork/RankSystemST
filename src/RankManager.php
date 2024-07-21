@@ -68,21 +68,15 @@ class RankManager {
         return 1;
     }
 
+    private array $rankHierarchy = [
+        'owner' => 1,
+        'Owner' => 2,
+        'member' => 3,
+        'guest' => 4,
+    ];
+
     public function getRankHierarchy() : array {
-        $hierarchy = [];
-
-        foreach ($this->ranks as $rank) {
-            $name = $rank['name'];
-            $parent = $rank['parent'];
-
-            if ($parent === null) {
-                $hierarchy[$name] = [];
-            } else {
-                $this->addToHierarchy($hierarchy, $parent, $name);
-            }
-        }
-
-        return $hierarchy;
+        return $this->rankHierarchy;
     }
 
     private function addToHierarchy(array &$hierarchy, string $parent, string $name) : void {

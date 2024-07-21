@@ -81,7 +81,6 @@ class Session {
             "&f" => TF::WHITE,
         ];
 
-        // Return the corresponding TextFormat constant or default to TF::RED
         return $colorMap[$colorCode] ?? TF::RED;
     }
 
