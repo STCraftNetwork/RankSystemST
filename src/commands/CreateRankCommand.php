@@ -29,7 +29,7 @@ class CreateRankCommand extends Command {
         $rankNames = array_keys($ranks);
         array_unshift($rankNames, "None");
 
-        $colors = [
+        $chatFormats = [
             "&0 - Black", "&1 - Dark Blue", "&2 - Dark Green", "&3 - Dark Aqua",
             "&4 - Dark Red", "&5 - Dark Purple", "&6 - Gold", "&7 - Gray",
             "&8 - Dark Gray", "&9 - Blue", "&a - Green", "&b - Aqua",
@@ -37,14 +37,14 @@ class CreateRankCommand extends Command {
             "None"
         ];
 
-        $form = new CustomForm(function (Player $player, ?array $data) use ($rankNames, $colors) {
+        $form = new CustomForm(function (Player $player, ?array $data) use ($rankNames, $chatFormats) {
             if ($data === null) {
                 return;
             }
 
             $rankName = trim($data[0]);
             $parentRankIndex = $data[1];
-            $colorIndex = $data[2];
+            $chatFormatIndex = $data[2];
 
             if (empty($rankName)) {
                 $player->sendMessage("Rank name cannot be empty.");
@@ -52,7 +52,7 @@ class CreateRankCommand extends Command {
             }
 
             $parentRank = $parentRankIndex === 0 ? null : $rankNames[$parentRankIndex];
-            $color = $colorIndex === count($colors) - 1 ? null : substr($colors[$colorIndex], 0, 2);
+            $chatFormat = $chatFormatIndex === count($chatFormats) - 1 ? null : substr($chatFormats[$chatFormatIndex], 0, 2);
             $rankManager = $this->plugin->getRankManager();
 
             if ($rankManager->rankExists($rankName)) {
@@ -65,14 +65,14 @@ class CreateRankCommand extends Command {
                 return;
             }
 
-            $rankManager->createRank($rankName, $parentRank ?: null, $color ?: null);
-            $player->sendMessage("Rank '{$rankName}' created successfully with color '{$color}'.");
+            $rankManager->createRank($rankName, $parentRank ?: null, $chatFormat ?: null);
+            $player->sendMessage("Rank '{$rankName}' created successfully with chat format '{$chatFormat}'.");
         });
 
         $form->setTitle("Create Rank");
         $form->addInput("Rank name");
         $form->addDropdown("Parent rank (optional)", $rankNames);
-        $form->addDropdown("Color (optional)", $colors);
+        $form->addDropdown("Chat format (optional)", $chatFormats);
 
         $sender->sendForm($form);
     }

@@ -10,10 +10,10 @@ class Session {
 
     private ?Player $player;
     private string $playerName;
-    private array $ranks;
-    private array $permissions;
+    private array $ranks = [];
+    private array $permissions = [];
     private string $chatColor;
-    private array $tags;
+    private array $tags = [];
     private mysqli $db;
     private RankManager $rankManager;
 
@@ -34,19 +34,34 @@ class Session {
         $this->loadData();
     }
 
+    /**
+     * Create the players table if it does not exist.
+     */
     private function createTables() : void {
-        $this->db->query("CREATE TABLE IF NOT EXISTS players (
+        $sql = "CREATE TABLE IF NOT EXISTS players (
             name VARCHAR(30) PRIMARY KEY,
             ranks TEXT,
             permissions TEXT,
             chatColor VARCHAR(30),
             tags TEXT
-        )");
+        )";
+        if (!$this->db->query($sql)) {
+            $this->handleError('Failed to create players table');
+        }
     }
 
+    /**
+     * Load player data from the database.
+     */
     private function loadData() : void {
-        $name = $this->db->escape_string($this->playerName);
-        $result = $this->db->query("SELECT * FROM players WHERE name = '$name'");
+        $stmt = $this->db->prepare("SELECT * FROM players WHERE name = ?");
+        if ($stmt === false) {
+            $this->handleError('Failed to prepare statement');
+            return;
+        }
+        $stmt->bind_param("s", $this->playerName);
+        $stmt->execute();
+        $result = $stmt->get_result();
         if ($result === false || $result->num_rows === 0) {
             $this->ranks = ["Default"];
             $this->permissions = [];
@@ -56,13 +71,30 @@ class Session {
             $data = $result->fetch_assoc();
             $this->ranks = explode(",", $data["ranks"]);
             $this->permissions = explode(",", $data["permissions"]);
-            $this->chatColor = $this->getTextFormatColor("&" . $data["chatColor"]);
+            $this->chatColor = $this->getTextFormatColor($data["chatColor"]);
             $this->tags = explode(",", $data["tags"]);
         }
+        $stmt->close();
     }
 
+    /**
+     * Map color codes to text format colors.
+     *
+     * @param string $colorCode
+     * @return string
+     */
     private function getTextFormatColor(string $colorCode): string {
-        $colorMap = [
+        $colorMap = $this->getTextFormatColorMap();
+        return $colorMap[$colorCode] ?? TF::RED;
+    }
+
+    /**
+     * Get a map of text format colors.
+     *
+     * @return array
+     */
+    private function getTextFormatColorMap(): array {
+        return [
             "&0" => TF::BLACK,
             "&1" => TF::DARK_BLUE,
             "&2" => TF::DARK_GREEN,
@@ -80,27 +112,40 @@ class Session {
             "&e" => TF::YELLOW,
             "&f" => TF::WHITE,
         ];
-
-        return $colorMap[$colorCode] ?? TF::RED;
     }
 
+    /**
+     * Get the ranks of the player.
+     *
+     * @return array
+     */
     public function getRanks() : array {
         return $this->ranks;
     }
 
+    /**
+     * Add a rank to the player.
+     *
+     * @param string $rank
+     */
     public function addRank(string $rank) : void {
         if (!in_array($rank, $this->ranks)) {
             if ($this->rankManager->rankExists($rank)) {
                 $this->ranks[] = $rank;
                 $this->saveData();
             } else {
-                RankSystem::getInstance()->getLogger()->info("The rank {$rank} does not exist.");
+                $this->logInfo("The rank {$rank} does not exist.");
             }
         } else {
-            RankSystem::getInstance()->getLogger()->info("The player already has the rank {$rank}.\n");
+            $this->logInfo("The player already has the rank {$rank}.");
         }
     }
 
+    /**
+     * Remove a rank from the player.
+     *
+     * @param string $rank
+     */
     public function removeRank(string $rank) : void {
         $key = array_search($rank, $this->ranks);
         if ($key !== false) {
@@ -110,45 +155,88 @@ class Session {
         }
     }
 
+    /**
+     * Get the permissions of the player.
+     *
+     * @return array
+     */
     public function getPermissions() : array {
         return $this->permissions;
     }
 
+    /**
+     * Add a permission to the player.
+     *
+     * @param string $permission
+     */
     public function addPermission(string $permission) : void {
-        $this->permissions[] = $permission;
-        $this->saveData();
-    }
-
-    public function removePermission(string $permission) : void {
-        $key = array_search($permission, $this->permissions);
-        if ($key !== false) {
-            unset($this->permissions[$key]);
+        if (!in_array($permission, $this->permissions)) {
+            $this->permissions[] = $permission;
             $this->saveData();
         }
     }
 
+    /**
+     * Remove a permission from the player.
+     *
+     * @param string $permission
+     */
+    public function removePermission(string $permission) : void {
+        $key = array_search($permission, $this->permissions);
+        if ($key !== false) {
+            unset($this->permissions[$key]);
+            $this->permissions = array_values($this->permissions);
+            $this->saveData();
+        }
+    }
+
+    /**
+     * Get the chat color of the player.
+     *
+     * @return string
+     */
     public function getChatColor() : string {
         return $this->chatColor;
     }
 
+    /**
+     * Set the chat color of the player.
+     *
+     * @param string $chatColor
+     */
     public function setChatColor(string $chatColor) : void {
         $this->chatColor = $this->getTextFormatColor($chatColor);
         $this->saveData();
     }
 
+    /**
+     * Get the tags of the player.
+     *
+     * @return array
+     */
     public function getTags() : array {
         return $this->tags;
     }
 
+    /**
+     * Add a tag to the player.
+     *
+     * @param string $tag
+     */
     public function addTag(string $tag) : void {
         if (!in_array($tag, $this->tags)) {
             $this->tags[] = $tag;
             $this->saveData();
         } else {
-            RankSystem::getInstance()->getLogger()->info("The player already has the tag {$tag}.\n");
+            $this->logInfo("The player already has the tag {$tag}.");
         }
     }
 
+    /**
+     * Remove a tag from the player.
+     *
+     * @param string $tag
+     */
     public function removeTag(string $tag) : void {
         $key = array_search($tag, $this->tags);
         if ($key !== false) {
@@ -158,71 +246,84 @@ class Session {
         }
     }
 
+    /**
+     * Save player data to the database.
+     */
     private function saveData() : void {
-        $name = $this->db->escape_string($this->playerName);
-        $ranks = $this->db->escape_string(implode(",", $this->ranks));
-        $permissions = $this->db->escape_string(implode(",", $this->permissions));
-        $chatColor = $this->db->escape_string(strtolower(array_search($this->chatColor, $this->getTextFormatColorMap())));
-        $tags = $this->db->escape_string(implode(",", $this->tags));
+        $stmt = $this->db->prepare("
+            INSERT INTO players (name, ranks, permissions, chatColor, tags)
+            VALUES (?, ?, ?, ?, ?)
+            ON DUPLICATE KEY UPDATE 
+                ranks = VALUES(ranks), 
+                permissions = VALUES(permissions), 
+                chatColor = VALUES(chatColor), 
+                tags = VALUES(tags)
+        ");
+        if ($stmt === false) {
+            $this->handleError('Failed to prepare statement');
+            return;
+        }
 
-        $query = "
-        INSERT INTO players (name, ranks, permissions, chatColor, tags)
-        VALUES ('$name', '$ranks', '$permissions', '$chatColor', '$tags')
-        ON DUPLICATE KEY UPDATE 
-            ranks = VALUES(ranks), 
-            permissions = VALUES(permissions), 
-            chatColor = VALUES(chatColor), 
-            tags = VALUES(tags)
-    ";
+        $ranks = implode(",", $this->ranks);
+        $permissions = implode(",", $this->permissions);
+        $chatColor = strtolower(array_search($this->chatColor, $this->getTextFormatColorMap()));
+        $tags = implode(",", $this->tags);
 
-        $this->db->query($query);
+        $stmt->bind_param("sssss", $this->playerName, $ranks, $permissions, $chatColor, $tags);
+        if (!$stmt->execute()) {
+            $this->handleError('Failed to execute statement');
+        }
+        $stmt->close();
     }
 
-    private function getTextFormatColorMap(): array {
-        return [
-            TF::BLACK => "&0",
-            TF::DARK_BLUE => "&1",
-            TF::DARK_GREEN => "&2",
-            TF::DARK_AQUA => "&3",
-            TF::DARK_RED => "&4",
-            TF::DARK_PURPLE => "&5",
-            TF::GOLD => "&6",
-            TF::GRAY => "&7",
-            TF::DARK_GRAY => "&8",
-            TF::BLUE => "&9",
-            TF::GREEN => "&a",
-            TF::AQUA => "&b",
-            TF::RED => "&c",
-            TF::LIGHT_PURPLE => "&d",
-            TF::YELLOW => "&e",
-            TF::WHITE => "&f",
-        ];
+    /**
+     * Log information messages.
+     *
+     * @param string $message
+     */
+    private function logInfo(string $message) : void {
+        RankSystem::getInstance()->getLogger()->info($message);
     }
 
+    /**
+     * Get the chat format for the player.
+     *
+     * @return string
+     */
     public function getChatFormat() : string {
-        $tags = implode(" ", $this->getTags());
+        $tags = implode(" ", $this->tags);
         $highestRank = $this->getHighestRank();
-        $chatColor = $this->getChatColor();
+        $chatColor = $this->chatColor;
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
-        if ($highestRank == null) return $tags . " " . $displayName . " " . $chatColor . "{message}";
-        return $highestRank . " " . $tags . " " . $displayName . " " . $chatColor . "{message}";
+        return ($highestRank ? $highestRank . " " : "") . $tags . " " . $displayName . " " . $chatColor . "{message}";
     }
 
+    /**
+     * Get the highest rank of the player.
+     *
+     * @return string|null
+     */
     public function getHighestRank() : ?string {
         $rankHierarchy = $this->rankManager->getRankHierarchy();
+        $highestRank = null;
 
-        $highestRank = "";
         foreach ($this->ranks as $rank) {
-            if (array_search($rank, $rankHierarchy) > array_search($highestRank, $rankHierarchy)) {
-                $highestRank = $rank;
+            if (isset($rankHierarchy[$rank])) {
+                if ($highestRank === null || $rankHierarchy[$rank] < $rankHierarchy[$highestRank]) {
+                    $highestRank = $rank;
+                }
             }
         }
 
-        if ($rankHierarchy == null || $this->rankManager->getFormattedRank($highestRank) == null) {
-            return null;
-        }
+        return $highestRank ? $this->rankManager->getFormattedRank($highestRank) : null;
+    }
 
-        return $this->rankManager->getFormattedRank($highestRank);
+    /**
+     * Handle database errors by logging them.
+     *
+     * @param string $message
+     */
+    private function handleError(string $message) : void {
+        error_log($message . ': ' . $this->db->error);
     }
 }
-
