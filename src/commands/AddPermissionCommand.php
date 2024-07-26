@@ -29,16 +29,10 @@ class AddPermissionCommand extends Command {
         $rankNames = array_keys($ranks);
         array_unshift($rankNames, "None");
 
-        $permissions = [];
-        foreach ($this->plugin->getServer()->getCommandMap()->getCommands() as $command) {
-            $permissions =+ $command->getPermissions();
-        }
-        array_unshift($permissions, "None");
-
         $players = $this->fetchAllPlayerNames();
         array_unshift($players, "None");
 
-        $form = new CustomForm(function (Player $player, ?array $data) use ($rankNames, $permissions, $players) {
+        $form = new CustomForm(function (Player $player, ?array $data) use ($rankNames, $players) {
             if ($data === null) {
                 return;
             }
@@ -62,13 +56,11 @@ class AddPermissionCommand extends Command {
             }
 
             if ($selectedRank) {
-                // Add permission to rank
                 $rankManager->addPermission($selectedRank, $permission);
                 $player->sendMessage("Permission '{$permission}' added to rank '{$selectedRank}'.");
             }
 
             if ($targetPlayerName) {
-                // Add permission to player directly
                 $session = $this->plugin->getSession($targetPlayerName);
                 if ($session === null) {
                     $player->sendMessage("Player '{$targetPlayerName}' not found.");
@@ -93,8 +85,8 @@ class AddPermissionCommand extends Command {
      * @return array
      */
     private function fetchAllPlayerNames(): array {
-        $db = $this->plugin->getDatabaseConnection();
-        $sql = "SELECT name FROM players"; // Adjust the table name as needed
+        $db = $this->plugin->getDatabase();
+        $sql = "SELECT name FROM players";
         $result = $db->query($sql);
 
         if ($result === false) {

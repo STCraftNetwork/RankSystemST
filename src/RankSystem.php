@@ -7,6 +7,7 @@ namespace KanadeBlue\RankSystemST;
 use KanadeBlue\RankSystemST\commands\AddPermissionCommand;
 use KanadeBlue\RankSystemST\commands\CreateRankCommand;
 use KanadeBlue\RankSystemST\commands\SetRankCommand;
+use pocketmine\player\OfflinePlayer;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\event\Listener;
@@ -83,8 +84,13 @@ class RankSystem extends PluginBase implements Listener{
 
 
 
-    public function getSession(Player $player) : ?Session{
+    public function getSession(OfflinePlayer|Player $player) : ?Session{
         return $this->sessions[$player->getName()] ?? null;
+    }
+
+    public function getDatabase(): mysqli
+    {
+        return $this->db;
     }
 
     public function getRankManager() : ?RankManager

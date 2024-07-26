@@ -3,6 +3,7 @@
 namespace KanadeBlue\RankSystemST;
 
 use pocketmine\player\Player;
+use pocketmine\Server;
 use pocketmine\utils\TextFormat as TF;
 use mysqli;
 
@@ -173,6 +174,7 @@ class Session {
         if (!in_array($permission, $this->permissions)) {
             $this->permissions[] = $permission;
             $this->saveData();
+            $this->player->addAttachment(Server::getInstance()->getPluginManager()->getPlugin("RankSystemST"))->setPermission($permission, true);
         }
     }
 
@@ -187,6 +189,7 @@ class Session {
             unset($this->permissions[$key]);
             $this->permissions = array_values($this->permissions);
             $this->saveData();
+            $this->player->addAttachment(Server::getInstance()->getPluginManager()->getPlugin("RankSystemST"))->unsetPermission($permission);
         }
     }
 
