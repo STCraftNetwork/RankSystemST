@@ -34,7 +34,7 @@ class AddPermissionCommand extends Command {
             $permissions =+ $command->getPermissions();
         }
         array_unshift($permissions, "None");
-        
+
         $players = $this->fetchAllPlayerNames();
         array_unshift($players, "None");
 

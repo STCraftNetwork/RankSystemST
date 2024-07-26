@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace KanadeBlue\RankSystemST;
 
+use KanadeBlue\RankSystemST\commands\AddPermissionCommand;
 use KanadeBlue\RankSystemST\commands\CreateRankCommand;
 use KanadeBlue\RankSystemST\commands\SetRankCommand;
 use pocketmine\player\Player;
@@ -35,6 +36,7 @@ class RankSystem extends PluginBase implements Listener{
         $this->rankManager = new RankManager($this->db);
         $this->getServer()->getCommandMap()->register("setrank", new SetRankCommand($this));
         $this->getServer()->getCommandMap()->register("createrank", new CreateRankCommand($this));
+        $this->getServer()->getCommandMap()->register("addpermission", new AddPermissionCommand($this));
     }
 
     public function onDisable() : void{
@@ -53,6 +55,11 @@ class RankSystem extends PluginBase implements Listener{
         $this->sessions[$player->getName()] = $session;
         foreach($session->getPermissions() as $permission){
             $player->addAttachment($this)->setPermission($permission, true);
+        }
+        foreach ($session->getRanks() as $rank) {
+            foreach ($this->getRankManager()->getPermissions($rank) as $permission) {
+                $player->addAttachment($this)->setPermission($permission, true);
+            }
         }
         $tags = implode(" ", $session->getTags());
         $player->setNameTag($tags . $session->getChatColor() . " " . $player->getName());
