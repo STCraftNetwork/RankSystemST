@@ -10,4 +10,7 @@ permissions:
     default: op
   command.rank.create:
     default: op
+  command.permission.add:
+    default: op
+
 ...
