@@ -284,7 +284,7 @@ class RankManager {
         }
         $rankData = $this->ranks[$rank];
         $chatFormat = $rankData['chat_format'] ?? '';
-        return "{$chatFormat}{$rank}&r";
+        return "{$chatFormat}{$rank}§r";
     }
 
     /**

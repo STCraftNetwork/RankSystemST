@@ -83,22 +83,22 @@ class Session {
 
     private function getTextFormatColorMap(): array {
         return [
-            "&0" => TF::BLACK,
-            "&1" => TF::DARK_BLUE,
-            "&2" => TF::DARK_GREEN,
-            "&3" => TF::DARK_AQUA,
-            "&4" => TF::DARK_RED,
-            "&5" => TF::DARK_PURPLE,
-            "&6" => TF::GOLD,
-            "&7" => TF::GRAY,
-            "&8" => TF::DARK_GRAY,
-            "&9" => TF::BLUE,
-            "&a" => TF::GREEN,
-            "&b" => TF::AQUA,
-            "&c" => TF::RED,
-            "&d" => TF::LIGHT_PURPLE,
-            "&e" => TF::YELLOW,
-            "&f" => TF::WHITE,
+            "§0" => TF::BLACK,
+            "§1" => TF::DARK_BLUE,
+            "§2" => TF::DARK_GREEN,
+            "§3" => TF::DARK_AQUA,
+            "§4" => TF::DARK_RED,
+            "§5" => TF::DARK_PURPLE,
+            "§6" => TF::GOLD,
+            "§7" => TF::GRAY,
+            "§8" => TF::DARK_GRAY,
+            "§9" => TF::BLUE,
+            "§a" => TF::GREEN,
+            "§b" => TF::AQUA,
+            "§c" => TF::RED,
+            "§d" => TF::LIGHT_PURPLE,
+            "§e" => TF::YELLOW,
+            "§f" => TF::WHITE,
         ];
     }
 
