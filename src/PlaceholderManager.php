@@ -32,7 +32,7 @@ class PlaceholderManager
             if (isset($data[$name])) {
                 $text = str_replace("{" . $name . "}", $data[$name], $text);
             } else {
-                $text = preg_replace_callback("/\{" . $name . "\}/", $callback, $text);
+                $text = preg_replace_callback("/\{" . $name . "}/", $callback, $text);
             }
         }
 

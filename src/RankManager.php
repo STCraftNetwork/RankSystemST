@@ -212,7 +212,6 @@ class RankManager
         $chatFormat = $this->ranks[$rank]['chat_format'] ?? '';
         $color = $this->ranks[$rank]['color'] ?? '';
 
-        // Prepare placeholder data
         $data = [
             'rank_name' => $rank,
             'description' => $this->ranks[$rank]['description'] ?? '',
