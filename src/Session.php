@@ -270,58 +270,44 @@ class Session {
 
     public function getChatFormat(): string {
         $selectedTag = !empty($this->tags) ? $this->tags[array_rand($this->tags)] : "";
-        $displayTags = implode(" ", $this->displayTags);
+        $displayTags = !empty($this->displayTags) ? implode(" ", $this->displayTags) : "";
         $highestRank = $this->getHighestRank() ?? "";
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
-        $plugin = Server::getInstance()->getPluginManager()->getPlugin("Faction");
 
+        $plugin = Server::getInstance()->getPluginManager()->getPlugin("Faction");
         if (!$plugin instanceof Main) {
             $this->logInfo("Missing faction plugin. :(");
             return "";
         }
 
-        $factionmanager = $plugin->getFactionManager();
-        $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
+        $factionManager = $plugin->getFactionManager();
+        $faction = $this->player ? $factionManager->getPlayerFaction($this->player->getUniqueId()) : null;
 
-        if ($faction == null) {
+        if ($faction === null) {
             $format = "{highestRank} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
-
-
             $placeholders = [
                 '{highestRank}' => $highestRank,
-                '{selectedTag}' => $selectedTag,
-                '{displayTags}' => $displayTags,
+                '{selectedTag}' => $selectedTag ? "$selectedTag " : "",
+                '{displayTags}' => $displayTags ? "$displayTags " : "",
                 '{displayName}' => $displayName,
                 '{chatColor}' => $this->chatColor,
                 '{message}' => '{message}'
             ];
+        } else {
+            $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
+            $factionPlacement = $factionManager->getFactionPlacement($faction);
 
-            foreach ($placeholders as $key => $value) {
-                $format = str_replace($key, $value, $format);
-            }
-
-            return $this->placeholderManager->replacePlaceholders($format);
-
+            $placeholders = [
+                '{highestRank}' => $highestRank,
+                '{selectedTag}' => $selectedTag ? "$selectedTag " : "",
+                '{displayTags}' => $displayTags ? "$displayTags " : "",
+                '{displayName}' => $displayName,
+                '{chatColor}' => $this->chatColor,
+                '{message}' => '{message}',
+                '{faction}' => $faction,
+                '{factionPlacement}' => $factionPlacement
+            ];
         }
-
-        $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
-
-
-        $placeholders = [
-            '{highestRank}' => $highestRank,
-            '{selectedTag}' => $selectedTag,
-            '{displayTags}' => $displayTags,
-            '{displayName}' => $displayName,
-            '{chatColor}' => $this->chatColor,
-            '{message}' => '{message}'
-        ];
-        $faction_placement = $factionmanager->getFactionPlacement($faction);
-        $placeholderManager = new PlaceholderManager();
-        $faction = $placeholderManager->replacePlaceholders('{faction}', [$faction]);
-        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', [$faction_placement]);
-
-        $placeholders['{faction}'] = $faction;
-        $placeholders['{factionPlacement}'] = $factionPlacement;
 
         foreach ($placeholders as $key => $value) {
             $format = str_replace($key, $value, $format);
@@ -329,6 +315,7 @@ class Session {
 
         return $this->placeholderManager->replacePlaceholders($format);
     }
+
 
 
     public function getHighestRank(): ?string {
