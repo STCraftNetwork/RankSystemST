@@ -284,6 +284,27 @@ class Session {
         $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
         $faction_placement = $factionmanager->getFactionPlacement($faction);
 
+        if ($faction == null || $faction_placement == null) {
+            $format = "{highestRank} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
+
+
+            $placeholders = [
+                '{highestRank}' => $highestRank,
+                '{selectedTag}' => $selectedTag,
+                '{displayTags}' => $displayTags,
+                '{displayName}' => $displayName,
+                '{chatColor}' => $this->chatColor,
+                '{message}' => '{message}'
+            ];
+
+            foreach ($placeholders as $key => $value) {
+                $format = str_replace($key, $value, $format);
+            }
+
+            return $this->placeholderManager->replacePlaceholders($format);
+
+        }
+
         $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
 
 
