@@ -2,6 +2,7 @@
 
 namespace KanadeBlue\RankSystemST;
 
+use OnlyJaiden\Faction\Main;
 use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\TextFormat as TF;
@@ -272,6 +273,16 @@ class Session {
         $displayTags = implode(" ", $this->displayTags);
         $highestRank = $this->getHighestRank() ?? "";
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
+        $plugin = Server::getInstance()->getPluginManager()->getPlugin("Faction");
+
+        if (!$plugin instanceof Main) {
+            $this->logInfo("Missing faction plugin. :(");
+            return "";
+        }
+
+        $factionmanager = $plugin->getFactionManager();
+        $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
+        $faction_placement = $factionmanager->getFactionPlacement($faction);
 
         $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
 
@@ -286,8 +297,8 @@ class Session {
         ];
 
         $placeholderManager = new PlaceholderManager();
-        $faction = $placeholderManager->replacePlaceholders('{faction}');
-        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}');
+        $faction = $placeholderManager->replacePlaceholders('{faction}', $faction);
+        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', $faction_placement);
 
         $placeholders['{faction}'] = $faction;
         $placeholders['{factionPlacement}'] = $factionPlacement;
