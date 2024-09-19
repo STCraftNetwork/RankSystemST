@@ -272,8 +272,8 @@ class Session {
         $highestRank = $this->getHighestRank() ?? "";
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
         $placeholderManager = new PlaceholderManager();
-        $faction = $placeholderManager->replacePlaceholders('faction');
-        $faction_placement = $placeholderManager->replacePlaceholders('faction_placement');
+        $faction = $placeholderManager->replacePlaceholders('{faction}');
+        $faction_placement = $placeholderManager->replacePlaceholders('{faction_placement}');
         if (!$faction || !$faction_placement) {
             return trim("{$highestRank} {$selectedTag} {$displayTags} {$displayName} {$this->chatColor}") . " {message}";
         }
