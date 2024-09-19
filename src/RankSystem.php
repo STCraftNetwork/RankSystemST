@@ -16,31 +16,23 @@ use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\player\PlayerChatEvent;
 use mysqli;
 
-class RankSystem extends PluginBase implements Listener{
-
+class RankSystem extends PluginBase implements Listener
+{
     private static RankSystem $instance;
     private array $sessions = [];
     private mysqli $db;
-
     private RankManager $rankManager;
 
-    public function onEnable() : void{
+    protected function onEnable(): void
+    {
+        $this->initializeDatabase();
+        $this->initializeCommands();
         $this->getServer()->getPluginManager()->registerEvents($this, $this);
-        $this->saveDefaultConfig();
-        RankSystem::$instance = $this;
-        $config = $this->getConfig()->get("database");
-        $this->db = new mysqli($config["host"], $config["username"], $config["password"], $config["name"]);
-        if($this->db->connect_error){
-            $this->getLogger()->error("Failed to connect to database: " . $this->db->connect_error);
-            $this->getServer()->getPluginManager()->disablePlugin($this);
-        }
-        $this->rankManager = new RankManager($this->db);
-        $this->getServer()->getCommandMap()->register("setrank", new SetRankCommand($this));
-        $this->getServer()->getCommandMap()->register("createrank", new CreateRankCommand($this));
-        $this->getServer()->getCommandMap()->register("addpermission", new AddPermissionCommand($this));
+        self::$instance = $this;
     }
 
-    public function onDisable() : void{
+    protected function onDisable(): void
+    {
         $this->db->close();
     }
 
@@ -49,21 +41,58 @@ class RankSystem extends PluginBase implements Listener{
         return self::$instance;
     }
 
+    private function initializeDatabase(): void
+    {
+        $this->saveDefaultConfig();
+        $config = $this->getConfig()->get("database");
+        $this->db = new mysqli($config["host"], $config["username"], $config["password"], $config["name"]);
+
+        if ($this->db->connect_error) {
+            $this->getLogger()->error("Failed to connect to database: " . $this->db->connect_error);
+            $this->getServer()->getPluginManager()->disablePlugin($this);
+            return;
+        }
+
+        $this->rankManager = new RankManager($this->db);
+    }
+
+    private function initializeCommands(): void
+    {
+        $commandMap = $this->getServer()->getCommandMap();
+        $commandMap->register("setrank", new SetRankCommand($this));
+        $commandMap->register("createrank", new CreateRankCommand($this));
+        $commandMap->register("addpermission", new AddPermissionCommand($this));
+    }
+
     public function onJoin(PlayerJoinEvent $event): void
     {
         $player = $event->getPlayer();
         $session = new Session($player, $player->getName(), $this->db, $this->rankManager);
         $this->sessions[$player->getName()] = $session;
-        foreach($session->getPermissions() as $permission){
-            $player->addAttachment($this)->setPermission($permission, true);
+
+        $this->applyPermissions($player, $session);
+        $this->updatePlayerNameTag($player, $session);
+    }
+
+    private function applyPermissions(Player $player, Session $session): void
+    {
+        $attachment = $player->addAttachment($this);
+        foreach ($session->getPermissions() as $permission) {
+            $attachment->setPermission($permission, true);
         }
+
         foreach ($session->getRanks() as $rank) {
-            foreach ($this->getRankManager()->getPermissions($rank) as $permission) {
-                $player->addAttachment($this)->setPermission($permission, true);
+            foreach ($this->rankManager->getPermissions($rank) as $permission) {
+                $attachment->setPermission($permission, true);
             }
         }
+    }
+
+    private function updatePlayerNameTag(Player $player, Session $session): void
+    {
         $tags = implode(" ", $session->getTags());
-        $player->setNameTag($tags . $session->getChatColor() . " " . $player->getName());
+        $nameTag = $tags . $session->getChatColor() . " " . $player->getName();
+        $player->setNameTag($nameTag);
     }
 
     public function onQuit(PlayerQuitEvent $event): void
@@ -76,15 +105,15 @@ class RankSystem extends PluginBase implements Listener{
     {
         $player = $event->getPlayer();
         $session = $this->getSession($player);
-        if($session !== null){
-            $formatter = New ChatFormat($this->getSession($player));
+
+        if ($session !== null) {
+            $formatter = new ChatFormat($session);
             $event->setFormatter($formatter);
         }
     }
 
-
-
-    public function getSession(OfflinePlayer|Player $player) : ?Session{
+    public function getSession(OfflinePlayer|Player $player): ?Session
+    {
         return $this->sessions[$player->getName()] ?? null;
     }
 
@@ -93,8 +122,8 @@ class RankSystem extends PluginBase implements Listener{
         return $this->db;
     }
 
-    public function getRankManager() : ?RankManager
+    public function getRankManager(): RankManager
     {
-        return $this->rankManager ?? null;
+        return $this->rankManager;
     }
 }

@@ -30,11 +30,11 @@ class CreateRankCommand extends Command {
         array_unshift($rankNames, "None");
 
         $chatFormats = [
-            "§0 - Black", "§1 - Dark Blue", "§2 - Dark Green", "§3 - Dark Aqua",
-            "§4 - Dark Red", "§5 - Dark Purple", "§6 - Gold", "§7 - Gray",
-            "§8 - Dark Gray", "§9 - Blue", "§a - Green", "§b - Aqua",
-            "§c - Red", "§d - Light Purple", "§e - Yellow", "§f - White",
-            "§r - None"
+            "&0 - Black", "&1 - Dark Blue", "&2 - Dark Green", "&3 - Dark Aqua",
+            "&4 - Dark Red", "&5 - Dark Purple", "&6 - Gold", "&7 - Gray",
+            "&8 - Dark Gray", "&9 - Blue", "&a - Green", "&b - Aqua",
+            "&c - Red", "&d - Light Purple", "&e - Yellow", "&f - White",
+            "None"
         ];
 
         $form = new CustomForm(function (Player $player, ?array $data) use ($rankNames, $chatFormats) {

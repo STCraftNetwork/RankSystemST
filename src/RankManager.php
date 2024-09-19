@@ -1,257 +1,191 @@
 <?php
 
+declare(strict_types=1);
+
 namespace KanadeBlue\RankSystemST;
 
 use mysqli;
 use mysqli_stmt;
 
-class RankManager {
-
+class RankManager
+{
     private mysqli $db;
     private array $ranks = [];
     private array $rankHierarchy = [];
+    private PlaceholderManager $placeholderManager;
 
-    public function __construct(mysqli $db) {
+    public function __construct(mysqli $db)
+    {
         $this->db = $db;
         $this->createTables();
         $this->loadRanks();
+        $this->placeholderManager = new PlaceholderManager();
+
+        $this->placeholderManager->registerPlaceholder('rank_name', function($matches) {
+            return $matches[1] ?? 'Unknown';
+        });
     }
 
-    /**
-     * Create the ranks and permissions tables if they do not exist.
-     */
-    private function createTables() : void {
-        // Create ranks table
-        $sql = "CREATE TABLE IF NOT EXISTS ranks (
-            name VARCHAR(30) PRIMARY KEY,
-            parent VARCHAR(30) DEFAULT NULL,
-            chat_format VARCHAR(50) DEFAULT NULL,
-            FOREIGN KEY (parent) REFERENCES ranks(name)
-        )";
-        if (!$this->db->query($sql)) {
-            $this->handleError('Failed to create ranks table');
-        }
+    private function createTables(): void
+    {
+        $queries = [
+            "CREATE TABLE IF NOT EXISTS ranks (
+                name VARCHAR(30) PRIMARY KEY,
+                parent VARCHAR(30) DEFAULT NULL,
+                chat_format VARCHAR(50) DEFAULT NULL,
+                description TEXT DEFAULT NULL,
+                color VARCHAR(20) DEFAULT NULL,
+                FOREIGN KEY (parent) REFERENCES ranks(name)
+            )",
+            "CREATE TABLE IF NOT EXISTS permissions (
+                rank_name VARCHAR(30),
+                permission VARCHAR(255),
+                FOREIGN KEY (rank_name) REFERENCES ranks(name),
+                PRIMARY KEY (rank_name, permission)
+            )"
+        ];
 
-        // Create permissions table
-        $sql = "CREATE TABLE IF NOT EXISTS permissions (
-            rank_name VARCHAR(30),
-            permission VARCHAR(255),
-            FOREIGN KEY (rank_name) REFERENCES ranks(name),
-            PRIMARY KEY (rank_name, permission)
-        )";
-        if (!$this->db->query($sql)) {
-            $this->handleError('Failed to create permissions table');
+        foreach ($queries as $query) {
+            if (!$this->db->query($query)) {
+                $this->handleError('Failed to create tables');
+                return;
+            }
         }
     }
 
-    /**
-     * Load all ranks and their permissions from the database into memory.
-     */
-    private function loadRanks() : void {
-        $sql = "SELECT * FROM ranks";
-        $result = $this->db->query($sql);
+    private function loadRanks(): void
+    {
+        $result = $this->db->query("SELECT * FROM ranks");
+
         if ($result === false) {
             $this->handleError('Failed to load ranks');
             return;
         }
+
         while ($row = $result->fetch_assoc()) {
             $this->ranks[$row["name"]] = $row;
         }
+
         $this->rankHierarchy = $this->buildRankHierarchy();
     }
 
-    /**
-     * Build the rank hierarchy from the ranks loaded.
-     *
-     * @return array
-     */
-    private function buildRankHierarchy() : array {
+    private function buildRankHierarchy(): array
+    {
         $hierarchy = [];
+
         foreach ($this->ranks as $rankName => $rankData) {
             $parent = $rankData['parent'] ?? null;
             if ($parent) {
-                if (!isset($hierarchy[$parent])) {
-                    $hierarchy[$parent] = ['children' => []];
-                }
                 $hierarchy[$parent]['children'][$rankName] = ['children' => []];
             } else {
                 $hierarchy[$rankName] = ['children' => []];
             }
         }
+
         return $hierarchy;
     }
 
-    /**
-     * Get all ranks.
-     *
-     * @return array
-     */
-    public function getRanks() : array {
+    public function getRanks(): array
+    {
         return $this->ranks;
     }
 
-    /**
-     * Check if a rank exists.
-     *
-     * @param string $rank
-     * @return bool
-     */
-    public function rankExists(string $rank) : bool {
+    public function rankExists(string $rank): bool
+    {
         return isset($this->ranks[$rank]);
     }
 
-    /**
-     * Create a new rank.
-     *
-     * @param string $rank
-     * @param string|null $parent
-     * @param string|null $chatFormat
-     * @return int|null
-     */
-    public function createRank(string $rank, ?string $parent = null, ?string $chatFormat = null) : ?int {
-        if ($this->rankExists($rank)) {
-            return null;
-        }
-        if ($parent !== null && !$this->rankExists($parent)) {
+    public function createRank(string $rank, ?string $parent = null, ?string $chatFormat = null, ?string $description = null, ?string $color = null): ?int
+    {
+        if ($this->rankExists($rank) || ($parent !== null && !$this->rankExists($parent))) {
             return null;
         }
 
-        $stmt = $this->db->prepare("INSERT INTO ranks (name, parent, chat_format) VALUES (?, ?, ?)");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
+        $stmt = $this->prepareStatement(
+            "INSERT INTO ranks (name, parent, chat_format, description, color) VALUES (?, ?, ?, ?, ?)",
+            'Failed to create rank'
+        );
+        if ($stmt === null) {
             return null;
         }
-        $stmt->bind_param("sss", $rank, $parent, $chatFormat);
-        if (!$stmt->execute()) {
-            $this->handleError('Failed to execute statement');
-            return null;
-        }
-        $stmt->close();
 
-        $this->ranks[$rank] = [
-            "name" => $rank,
-            "parent" => $parent,
-            "chat_format" => $chatFormat
-        ];
-        $this->rankHierarchy = $this->buildRankHierarchy();
-        return 1;
+        $stmt->bind_param("sssss", $rank, $parent, $chatFormat, $description, $color);
+        return $this->executeStatement($stmt);
     }
 
-    /**
-     * Delete a rank.
-     *
-     * @param string $rank
-     * @return int|null
-     */
-    public function deleteRank(string $rank) : ?int {
+    public function deleteRank(string $rank): ?int
+    {
         if (!$this->rankExists($rank)) {
             return null;
         }
 
-        // Delete associated permissions first
-        $stmt = $this->db->prepare("DELETE FROM permissions WHERE rank_name = ?");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
+        if (!$this->deletePermissions($rank)) {
             return null;
         }
+
+        $stmt = $this->prepareStatement("DELETE FROM ranks WHERE name = ?", 'Failed to delete rank');
+        if ($stmt === null) {
+            return null;
+        }
+
         $stmt->bind_param("s", $rank);
-        if (!$stmt->execute()) {
-            $this->handleError('Failed to execute statement');
-            return null;
+        if ($stmt->execute()) {
+            unset($this->ranks[$rank]);
+            $this->rankHierarchy = $this->buildRankHierarchy();
+            return 1;
         }
-        $stmt->close();
 
-        // Then delete the rank
-        $stmt = $this->db->prepare("DELETE FROM ranks WHERE name = ?");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
-            return null;
-        }
-        $stmt->bind_param("s", $rank);
-        if (!$stmt->execute()) {
-            $this->handleError('Failed to execute statement');
-            return null;
-        }
-        $stmt->close();
-
-        unset($this->ranks[$rank]);
-        $this->rankHierarchy = $this->buildRankHierarchy();
-        return 1;
+        $this->handleError('Failed to execute delete rank statement');
+        return null;
     }
 
-    /**
-     * Add a permission to a rank.
-     *
-     * @param string $rank
-     * @param string $permission
-     * @return int|null
-     */
-    public function addPermission(string $rank, string $permission) : ?int {
+    public function addPermission(string $rank, string $permission): ?int
+    {
         if (!$this->rankExists($rank)) {
             return null;
         }
 
-        $stmt = $this->db->prepare("INSERT INTO permissions (rank_name, permission) VALUES (?, ?)");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
+        $stmt = $this->prepareStatement("INSERT INTO permissions (rank_name, permission) VALUES (?, ?)", 'Failed to add permission');
+        if ($stmt === null) {
             return null;
         }
+
         $stmt->bind_param("ss", $rank, $permission);
-        if (!$stmt->execute()) {
-            $this->handleError('Failed to execute statement');
-            return null;
-        }
-        $stmt->close();
-        return 1;
+        return $this->executeStatement($stmt);
     }
 
-    /**
-     * Remove a permission from a rank.
-     *
-     * @param string $rank
-     * @param string $permission
-     * @return int|null
-     */
-    public function removePermission(string $rank, string $permission) : ?int {
+    public function removePermission(string $rank, string $permission): ?int
+    {
         if (!$this->rankExists($rank)) {
             return null;
         }
 
-        $stmt = $this->db->prepare("DELETE FROM permissions WHERE rank_name = ? AND permission = ?");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
+        $stmt = $this->prepareStatement("DELETE FROM permissions WHERE rank_name = ? AND permission = ?", 'Failed to remove permission');
+        if ($stmt === null) {
             return null;
         }
+
         $stmt->bind_param("ss", $rank, $permission);
-        if (!$stmt->execute()) {
-            $this->handleError('Failed to execute statement');
-            return null;
-        }
-        $stmt->close();
-        return 1;
+        return $this->executeStatement($stmt);
     }
 
-    /**
-     * Get all permissions for a rank.
-     *
-     * @param string $rank
-     * @return array
-     */
-    public function getPermissions(string $rank) : array {
+    public function getPermissions(string $rank): array
+    {
         if (!$this->rankExists($rank)) {
             return [];
         }
 
-        $stmt = $this->db->prepare("SELECT permission FROM permissions WHERE rank_name = ?");
-        if ($stmt === false) {
-            $this->handleError('Failed to prepare statement');
+        $stmt = $this->prepareStatement("SELECT permission FROM permissions WHERE rank_name = ?", 'Failed to get permissions');
+        if ($stmt === null) {
             return [];
         }
+
         $stmt->bind_param("s", $rank);
         $stmt->execute();
         $result = $stmt->get_result();
+
         if ($result === false) {
-            $this->handleError('Failed to execute statement');
+            $this->handleError('Failed to execute get permissions statement');
             return [];
         }
 
@@ -259,40 +193,83 @@ class RankManager {
         while ($row = $result->fetch_assoc()) {
             $permissions[] = $row['permission'];
         }
+
         $stmt->close();
         return $permissions;
     }
 
-    /**
-     * Get the rank hierarchy.
-     *
-     * @return array
-     */
-    public function getRankHierarchy() : array {
+    public function getRankHierarchy(): array
+    {
         return $this->rankHierarchy;
     }
 
-    /**
-     * Get the formatted rank string.
-     *
-     * @param string $rank
-     * @return string|null
-     */
-    public function getFormattedRank(string $rank): ?string {
+    public function getFormattedRank(string $rank): ?string
+    {
         if (!$this->rankExists($rank)) {
             return null;
         }
-        $rankData = $this->ranks[$rank];
-        $chatFormat = $rankData['chat_format'] ?? '';
-        return "{$chatFormat}{$rank}§r";
+
+        $chatFormat = $this->ranks[$rank]['chat_format'] ?? '';
+        $color = $this->ranks[$rank]['color'] ?? '';
+
+        // Prepare placeholder data
+        $data = [
+            'rank_name' => $rank,
+            'description' => $this->ranks[$rank]['description'] ?? '',
+            'color' => $color,
+        ];
+
+        $formatted = $this->placeholderManager->replacePlaceholders("{$color}{$chatFormat}{$rank}&r", $data);
+        return $formatted;
     }
 
-    /**
-     * Handle database errors by logging them.
-     *
-     * @param string $message
-     */
-    private function handleError(string $message) : void {
+    public function registerPlaceholder(string $name, callable $callback): void
+    {
+        $this->placeholderManager->registerPlaceholder($name, $callback);
+    }
+
+    private function prepareStatement(string $query, string $errorMessage): ?mysqli_stmt
+    {
+        $stmt = $this->db->prepare($query);
+
+        if ($stmt === false) {
+            $this->handleError($errorMessage);
+            return null;
+        }
+
+        return $stmt;
+    }
+
+    private function executeStatement(mysqli_stmt $stmt): ?int
+    {
+        if (!$stmt->execute()) {
+            $this->handleError('Failed to execute statement');
+            return null;
+        }
+
+        $stmt->close();
+        return 1;
+    }
+
+    private function deletePermissions(string $rank): bool
+    {
+        $stmt = $this->prepareStatement("DELETE FROM permissions WHERE rank_name = ?", 'Failed to delete permissions');
+        if ($stmt === null) {
+            return false;
+        }
+
+        $stmt->bind_param("s", $rank);
+        if (!$stmt->execute()) {
+            $this->handleError('Failed to execute delete permissions statement');
+            return false;
+        }
+
+        $stmt->close();
+        return true;
+    }
+
+    private function handleError(string $message): void
+    {
         error_log($message . ': ' . $this->db->error);
     }
 }
