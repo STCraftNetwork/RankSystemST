@@ -317,8 +317,8 @@ class Session {
         ];
         $faction_placement = $factionmanager->getFactionPlacement($faction);
         $placeholderManager = new PlaceholderManager();
-        $faction = $placeholderManager->replacePlaceholders('{faction}', $faction);
-        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', $faction_placement);
+        $faction = $placeholderManager->replacePlaceholders('{faction}', [$faction]);
+        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', [$faction_placement]);
 
         $placeholders['{faction}'] = $faction;
         $placeholders['{factionPlacement}'] = $factionPlacement;
