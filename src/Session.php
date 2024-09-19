@@ -282,9 +282,8 @@ class Session {
 
         $factionmanager = $plugin->getFactionManager();
         $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
-        $faction_placement = $factionmanager->getFactionPlacement($faction);
 
-        if ($faction == null || $faction_placement == null) {
+        if ($faction == null) {
             $format = "{highestRank} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
 
 
@@ -316,7 +315,7 @@ class Session {
             '{chatColor}' => $this->chatColor,
             '{message}' => '{message}'
         ];
-
+        $faction_placement = $factionmanager->getFactionPlacement($faction);
         $placeholderManager = new PlaceholderManager();
         $faction = $placeholderManager->replacePlaceholders('{faction}', $faction);
         $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', $faction_placement);
