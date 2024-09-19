@@ -273,45 +273,47 @@ class Session {
         $displayTags = !empty($this->displayTags) ? implode(" ", $this->displayTags) : "";
         $highestRank = $this->getHighestRank() ?? "";
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
-
         $plugin = Server::getInstance()->getPluginManager()->getPlugin("Faction");
+
         if (!$plugin instanceof Main) {
             $this->logInfo("Missing faction plugin. :(");
             return "";
         }
 
-        $factionManager = $plugin->getFactionManager();
-        $faction = $this->player ? $factionManager->getPlayerFaction($this->player->getUniqueId()) : null;
+        $factionmanager = $plugin->getFactionManager();
+        $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
+        
+        $formatParts = [
+            '{highestRank}' => $highestRank,
+            '{selectedTag}' => $selectedTag,
+            '{displayTags}' => $displayTags,
+            '{displayName}' => $displayName,
+            '{chatColor}' => $this->chatColor,
+            '{message}' => '{message}'
+        ];
 
-        if ($faction === null) {
-            $format = "{highestRank} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
-            $placeholders = [
-                '{highestRank}' => $highestRank,
-                '{selectedTag}' => $selectedTag ? "$selectedTag " : "",
-                '{displayTags}' => $displayTags ? "$displayTags " : "",
-                '{displayName}' => $displayName,
-                '{chatColor}' => $this->chatColor,
-                '{message}' => '{message}'
-            ];
-        } else {
-            $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
-            $factionPlacement = $factionManager->getFactionPlacement($faction);
+        if ($faction) {
+            $faction_placement = $factionmanager->getFactionPlacement($faction);
+            $placeholderManager = new PlaceholderManager();
+            $faction = $placeholderManager->replacePlaceholders('{faction}', [$faction]);
+            $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', [$faction_placement]);
 
-            $placeholders = [
-                '{highestRank}' => $highestRank,
-                '{selectedTag}' => $selectedTag ? "$selectedTag " : "",
-                '{displayTags}' => $displayTags ? "$displayTags " : "",
-                '{displayName}' => $displayName,
-                '{chatColor}' => $this->chatColor,
-                '{message}' => '{message}',
-                '{faction}' => $faction,
-                '{factionPlacement}' => $factionPlacement
-            ];
+            $formatParts['{faction}'] = $faction;
+            $formatParts['{faction_placement}'] = $factionPlacement;
         }
 
-        foreach ($placeholders as $key => $value) {
-            $format = str_replace($key, $value, $format);
+        $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
+
+        foreach ($formatParts as $key => $value) {
+            if (!empty($value) || in_array($key, ['{highestRank}', '{displayName}', '{chatColor}', '{message}'])) {
+                $format = str_replace($key, $value, $format);
+            } else {
+                $format = str_replace($key, '', $format);
+            }
         }
+
+        $format = preg_replace('/\s{2,}/', ' ', $format);
+        $format = trim($format);
 
         return $this->placeholderManager->replacePlaceholders($format);
     }
