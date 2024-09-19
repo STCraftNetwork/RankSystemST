@@ -19,12 +19,14 @@ class Session {
     private array $displayTags = [];
     private mysqli $db;
     private RankManager $rankManager;
+    private PlaceholderManager $placeholderManager;
 
     public function __construct(?Player $player, ?string $playerName, mysqli $db, RankManager $rankManager) {
         $this->player = $player;
         $this->playerName = $playerName ?? ($player ? $player->getName() : '');
         $this->db = $db;
         $this->rankManager = $rankManager;
+        $this->placeholderManager = new PlaceholderManager();
         $this->initialize();
     }
 
@@ -248,7 +250,6 @@ class Session {
         }
         return $stmt;
     }
-
     private function executeQuery(string $query): void {
         if (!$this->db->query($query)) {
             throw new \RuntimeException('Failed to execute query: ' . $this->db->error);
@@ -271,15 +272,33 @@ class Session {
         $displayTags = implode(" ", $this->displayTags);
         $highestRank = $this->getHighestRank() ?? "";
         $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
+
+        $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
+
+
+        $placeholders = [
+            '{highestRank}' => $highestRank,
+            '{selectedTag}' => $selectedTag,
+            '{displayTags}' => $displayTags,
+            '{displayName}' => $displayName,
+            '{chatColor}' => $this->chatColor,
+            '{message}' => '{message}'
+        ];
+
         $placeholderManager = new PlaceholderManager();
         $faction = $placeholderManager->replacePlaceholders('{faction}');
-        $faction_placement = $placeholderManager->replacePlaceholders('{faction_placement}');
-        if (!$faction || !$faction_placement) {
-            return trim("{$highestRank} {$selectedTag} {$displayTags} {$displayName} {$this->chatColor}") . " {message}";
+        $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}');
+
+        $placeholders['{faction}'] = $faction;
+        $placeholders['{factionPlacement}'] = $factionPlacement;
+
+        foreach ($placeholders as $key => $value) {
+            $format = str_replace($key, $value, $format);
         }
 
-        return trim("{$highestRank} {$faction_placement} {$faction} {$selectedTag} {$displayTags} {$displayName} {$this->chatColor}") . " {message}";
+        return $this->placeholderManager->replacePlaceholders($format);
     }
+
 
     public function getHighestRank(): ?string {
         $rankHierarchy = $this->rankManager->getRankHierarchy();
