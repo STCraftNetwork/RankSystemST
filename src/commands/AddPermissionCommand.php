@@ -61,7 +61,15 @@ class AddPermissionCommand extends Command {
             }
 
             if ($targetPlayerName) {
-                $session = $this->plugin->getSession($targetPlayerName);
+
+                $playerIn = $this->plugin->getServer()->getPlayerExact($targetPlayerName);
+
+                if ($playerIn instanceof Player) {
+                    $player->sendMessage("Player not online '{$targetPlayerName}' not found.");
+                    return;
+                }
+
+                $session = $this->plugin->getSession($playerIn);
                 if ($session === null) {
                     $player->sendMessage("Player '{$targetPlayerName}' not found.");
                     return;
