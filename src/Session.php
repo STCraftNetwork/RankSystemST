@@ -2,12 +2,11 @@
 
 namespace KanadeBlue\RankSystemST;
 
-use OnlyJaiden\Faction\Main;
+use mysqli_stmt;
 use pocketmine\player\Player;
 use pocketmine\Server;
 use pocketmine\utils\TextFormat as TF;
 use mysqli;
-use mysqli_stmt;
 
 class Session {
 
@@ -15,7 +14,7 @@ class Session {
     private string $playerName;
     private array $ranks = [];
     private array $permissions = [];
-    private string $chatColor;
+    private string $chatColor = TF::RED;
     private array $tags = [];
     private array $displayTags = [];
     private mysqli $db;
@@ -37,7 +36,7 @@ class Session {
     }
 
     private function createTables(): void {
-        $sql = "
+        $this->executeQuery("
             CREATE TABLE IF NOT EXISTS players (
                 name VARCHAR(30) PRIMARY KEY,
                 ranks TEXT NOT NULL,
@@ -45,8 +44,8 @@ class Session {
                 chatColor VARCHAR(30) NOT NULL,
                 tags TEXT NOT NULL,
                 displayTags TEXT NOT NULL
-            )";
-        $this->executeQuery($sql);
+            )
+        ");
     }
 
     private function loadData(): void {
@@ -55,10 +54,10 @@ class Session {
         $stmt->execute();
         $result = $stmt->get_result();
 
-        if ($result === false || $result->num_rows === 0) {
-            $this->setDefaultValues();
-        } else {
+        if ($result && $result->num_rows > 0) {
             $this->populateData($result->fetch_assoc());
+        } else {
+            $this->setDefaultValues();
         }
 
         $stmt->close();
@@ -85,27 +84,17 @@ class Session {
     }
 
     private function getTextFormatColor(string $colorCode): string {
-        return $this->getTextFormatColorMap()[$colorCode] ?? TF::RED;
+        $colorMap = $this->getTextFormatColorMap();
+        return $colorMap[$colorCode] ?? TF::RED;
     }
 
     private function getTextFormatColorMap(): array {
         return [
-            "&0" => TF::BLACK,
-            "&1" => TF::DARK_BLUE,
-            "&2" => TF::DARK_GREEN,
-            "&3" => TF::DARK_AQUA,
-            "&4" => TF::DARK_RED,
-            "&5" => TF::DARK_PURPLE,
-            "&6" => TF::GOLD,
-            "&7" => TF::GRAY,
-            "&8" => TF::DARK_GRAY,
-            "&9" => TF::BLUE,
-            "&a" => TF::GREEN,
-            "&b" => TF::AQUA,
-            "&c" => TF::RED,
-            "&d" => TF::LIGHT_PURPLE,
-            "&e" => TF::YELLOW,
-            "&f" => TF::WHITE,
+            "&0" => TF::BLACK, "&1" => TF::DARK_BLUE, "&2" => TF::DARK_GREEN,
+            "&3" => TF::DARK_AQUA, "&4" => TF::DARK_RED, "&5" => TF::DARK_PURPLE,
+            "&6" => TF::GOLD, "&7" => TF::GRAY, "&8" => TF::DARK_GRAY, "&9" => TF::BLUE,
+            "&a" => TF::GREEN, "&b" => TF::AQUA, "&c" => TF::RED, "&d" => TF::LIGHT_PURPLE,
+            "&e" => TF::YELLOW, "&f" => TF::WHITE,
         ];
     }
 
@@ -114,22 +103,15 @@ class Session {
     }
 
     public function addRank(string $rank): void {
-        if (!in_array($rank, $this->ranks, true)) {
-            if ($this->rankManager->rankExists($rank)) {
-                $this->ranks[] = $rank;
-                $this->saveData();
-            } else {
-                $this->logInfo("The rank {$rank} does not exist.");
-            }
-        } else {
-            $this->logInfo("The player already has the rank {$rank}.");
+        if (!in_array($rank, $this->ranks, true) && $this->rankManager->rankExists($rank)) {
+            $this->ranks[] = $rank;
+            $this->saveData();
         }
     }
 
     public function removeRank(string $rank): void {
         if (($key = array_search($rank, $this->ranks, true)) !== false) {
             unset($this->ranks[$key]);
-            $this->ranks = array_values($this->ranks);
             $this->saveData();
         }
     }
@@ -149,7 +131,6 @@ class Session {
     public function removePermission(string $permission): void {
         if (($key = array_search($permission, $this->permissions, true)) !== false) {
             unset($this->permissions[$key]);
-            $this->permissions = array_values($this->permissions);
             $this->saveData();
             $this->setPlayerPermission($permission, false);
         }
@@ -179,8 +160,6 @@ class Session {
         if (!in_array($tag, $this->tags, true)) {
             $this->tags[] = $tag;
             $this->saveData();
-        } else {
-            $this->logInfo("The player already has the tag {$tag}.");
         }
     }
 
@@ -200,8 +179,6 @@ class Session {
         if (!in_array($displayTag, $this->displayTags, true)) {
             $this->displayTags[] = $displayTag;
             $this->saveData();
-        } else {
-            $this->logInfo("The player already has the display tag {$displayTag}.");
         }
     }
 
@@ -217,40 +194,36 @@ class Session {
         $stmt = $this->prepareStatement("
             INSERT INTO players (name, ranks, permissions, chatColor, tags, displayTags)
             VALUES (?, ?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE 
-                ranks = VALUES(ranks), 
-                permissions = VALUES(permissions), 
-                chatColor = VALUES(chatColor), 
-                tags = VALUES(tags),
-                displayTags = VALUES(displayTags)
+            ON DUPLICATE KEY UPDATE ranks = VALUES(ranks), permissions = VALUES(permissions),
+                chatColor = VALUES(chatColor), tags = VALUES(tags), displayTags = VALUES(displayTags)
         ");
 
-        $implodeTags = implode(",", $this->tags);
-        $implodeRanks = implode(",", $this->ranks);
-        $implodePermissions = implode(",", $this->permissions);
-        $chatColor = array_search($this->chatColor, $this->getTextFormatColorMap(), true) ?? '&c';
-        $implodeDisplayTags = implode(",", $this->displayTags);
-
+        $implode = implode(",", $this->ranks);
+        $implode1 = implode(",", $this->permissions);
+        $f = array_search($this->chatColor, $this->getTextFormatColorMap(), true) ?? '&c';
+        $implode2 = implode(",", $this->tags);
+        $implode3 = implode(",", $this->displayTags);
         $stmt->bind_param(
             "ssssss",
             $this->playerName,
-            $implodeRanks,
-            $implodePermissions,
-            $chatColor,
-            $implodeTags,
-            $implodeDisplayTags
+            $implode,
+            $implode1,
+            $f,
+            $implode2,
+            $implode3,
         );
 
         $this->executeStatement($stmt);
     }
 
-    private function prepareStatement(string $query): mysqli_stmt {
+    private function prepareStatement(string $query): \mysqli_stmt {
         $stmt = $this->db->prepare($query);
         if ($stmt === false) {
             throw new \RuntimeException('Failed to prepare statement: ' . $this->db->error);
         }
         return $stmt;
     }
+
     private function executeQuery(string $query): void {
         if (!$this->db->query($query)) {
             throw new \RuntimeException('Failed to execute query: ' . $this->db->error);
@@ -271,67 +244,25 @@ class Session {
     public function getChatFormat(): string {
         $selectedTag = !empty($this->tags) ? $this->tags[array_rand($this->tags)] : "";
         $displayTags = !empty($this->displayTags) ? implode(" ", $this->displayTags) : "";
-        $highestRank = $this->getHighestRank() ?? "";
-        $displayName = $this->player ? $this->player->getDisplayName() : $this->playerName;
-        $plugin = Server::getInstance()->getPluginManager()->getPlugin("Faction");
+        $highestRank = $this->getHighestRank();
 
-        if (!$plugin instanceof Main) {
-            $this->logInfo("Missing faction plugin. :(");
-            return "";
-        }
-
-        $factionmanager = $plugin->getFactionManager();
-        $faction = $factionmanager->getPlayerFaction($this->player->getUniqueId());
-        
-        $formatParts = [
-            '{highestRank}' => $highestRank,
-            '{selectedTag}' => $selectedTag,
-            '{displayTags}' => $displayTags,
-            '{displayName}' => $displayName,
-            '{chatColor}' => $this->chatColor,
-            '{message}' => '{message}'
-        ];
-
-        if ($faction) {
-            $faction_placement = $factionmanager->getFactionPlacement($faction);
-            $placeholderManager = new PlaceholderManager();
-            $faction = $placeholderManager->replacePlaceholders('{faction}', [$faction]);
-            $factionPlacement = $placeholderManager->replacePlaceholders('{faction_placement}', [$faction_placement]);
-
-            $formatParts['{faction}'] = $faction;
-            $formatParts['{faction_placement}'] = $factionPlacement;
-        }
-
-        $format = "{highestRank} {factionPlacement} {faction} {selectedTag} {displayTags} {displayName} {chatColor} {message}";
-
-        foreach ($formatParts as $key => $value) {
-            if (!empty($value) || in_array($key, ['{highestRank}', '{displayName}', '{chatColor}', '{message}'])) {
-                $format = str_replace($key, $value, $format);
-            } else {
-                $format = str_replace($key, '', $format);
-            }
-        }
-
-        $format = preg_replace('/\s{2,}/', ' ', $format);
-        $format = trim($format);
-
+        $format = RankSystem::getInstance()->getConfig()->get("chat-format");
+        $format = str_replace(
+            ["{player}", "{rank}", "{faction}", "{faction_placement}", "{displayTags}", "{selectedTag}", "{message}"],
+            [$this->playerName, $highestRank, implode(" ", $this->tags), $displayTags, $selectedTag, "{message}"],
+            $format
+        );
         return $this->placeholderManager->replacePlaceholders($format);
     }
 
-
-
-    public function getHighestRank(): ?string {
-        $rankHierarchy = $this->rankManager->getRankHierarchy();
-        $highestRank = null;
-
+    private function getHighestRank(): string {
+        $highestRank = "Default";
         foreach ($this->ranks as $rank) {
-            if (isset($rankHierarchy[$rank])) {
-                if ($highestRank === null || $rankHierarchy[$rank] < $rankHierarchy[$highestRank]) {
-                    $highestRank = $rank;
-                }
+            if ($this->rankManager->rankExists($rank)) {
+                $highestRank = $rank;
+                break;
             }
         }
-
-        return $highestRank ? $this->rankManager->getFormattedRank($highestRank) : null;
+        return $highestRank;
     }
 }
